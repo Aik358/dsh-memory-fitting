@@ -321,6 +321,10 @@ function fitArchiveTool() {
         confidence: { type: 'number' },
         accepted: { type: 'boolean', description: '用户是否确认了该结论' },
         note: { type: 'string' },
+        rejectedReason: {
+          type: 'string',
+          description: '用户【拒绝】该提案时，说明错在哪（选了另一个方向？还是"都不对"？）。这是训练价值最高的信号，请务必填写。',
+        },
       },
       required: ['sessionId', 'winner'],
     },
@@ -332,6 +336,19 @@ function fitArchiveTool() {
       await fitting.propose(sess, {
         winner: args.winner, confidence: args.confidence, intent: args.intent, text: args.note,
       })
+      // 训练就绪：被拒时记录"错在哪"，比单纯 rejected 信息量高得多
+      if (args.accepted === false) {
+        await fitting.recordFeedback(sess, {
+          context: sess.utterance,
+          modelDid: String(args.winner || ''),
+          userSaid: String(args.note || ''),
+          verdict: 'corrected',
+          preference: String(args.rejectedReason || ''),
+          scope: 'intent',
+          rejectedReason: String(args.rejectedReason || '用户未说明'),
+          deliberate: true,
+        }).catch(() => {})
+      }
       await fitting.finish(sess, { accepted: args.accepted !== false, note: args.note })
       const cfg = await store.readConfig()
       if (!cfg.writeMemory) {
