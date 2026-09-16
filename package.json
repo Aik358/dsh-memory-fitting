@@ -1,0 +1,66 @@
+{
+  "name": "@a9i5k4/dsh-memory-fitting",
+  "version": "0.1.0",
+  "description": "Intent fitting for DSH: the agent predicts several directions first, asks a batch of clarifying questions each round, narrows the distribution until one direction converges, then proposes it for your confirmation. Bottom-right floating panel, local JSONL archive, and both context injection and memory writes behind independent opt-in switches. 记忆拟合：AI 先预定若干方向（预测你的意图），每轮批量提问，轮间思考并展示方向可信度，收敛后提案待确认。右下角悬窗 + 本地留档；上下文注入与记忆写入各自独立开关，默认关闭。",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ],
+      "platform": "web"
+    }
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "plugin",
+    "dsh-plugin",
+    "memory-fitting",
+    "intent-fitting",
+    "intent",
+    "clarification",
+    "memory"
+  ],
+  "author": "Aik358",
+  "license": "MIT",
+  "homepage": "https://github.com/Aik358/dsh-memory-fitting#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aik358/dsh-memory-fitting.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Aik358/dsh-memory-fitting/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node scripts/smoke.mjs",
+    "verify": "node scripts/verify-load.mjs",
+    "prepublishOnly": "node build.mjs && node scripts/smoke.mjs"
+  }
+}

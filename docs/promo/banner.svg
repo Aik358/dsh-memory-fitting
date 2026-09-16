@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="220" viewBox="0 0 820 220" role="img" aria-label="dsh-memory-fitting: it asks before it acts">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="820" height="220" fill="url(#bg)"/>
+  <rect x="0" y="0" width="820" height="3" fill="url(#accent)"/>
+
+  <g font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+    <text x="48" y="74" font-size="30" font-weight="700" fill="#f1f5f9">记忆拟合</text>
+    <text x="48" y="106" font-size="15" fill="#94a3b8">dsh-memory-fitting — <tspan font-style="italic">It asks before it acts.</tspan></text>
+
+    <!-- 方向块：4 个候选，最后一个高亮为收敛 -->
+    <g transform="translate(48, 138)">
+      <rect x="0"   y="0" width="112" height="34" rx="8" fill="#1f2937" stroke="#374151"/>
+      <text x="56"  y="22" font-size="12" fill="#94a3b8" text-anchor="middle">方向 1</text>
+
+      <rect x="124" y="0" width="112" height="34" rx="8" fill="#1f2937" stroke="#374151"/>
+      <text x="180" y="22" font-size="12" fill="#94a3b8" text-anchor="middle">方向 2</text>
+
+      <rect x="248" y="0" width="112" height="34" rx="8" fill="#2563eb" stroke="#60a5fa"/>
+      <text x="304" y="22" font-size="12" fill="#dbeafe" text-anchor="middle" font-weight="600">方向 3 ✓</text>
+
+      <rect x="372" y="0" width="112" height="34" rx="8" fill="#1f2937" stroke="#374151"/>
+      <text x="428" y="22" font-size="12" fill="#94a3b8" text-anchor="middle">方向 4</text>
+
+      <!-- 提问 → 收敛 的箭头 -->
+      <path d="M 500 17 L 548 17" stroke="#475569" stroke-width="2" fill="none"/>
+      <path d="M 542 11 L 550 17 L 542 23 Z" fill="#475569"/>
+      <text x="524" y="10" font-size="10" fill="#64748b" text-anchor="middle">提问</text>
+
+      <rect x="562" y="-4" width="164" height="42" rx="10" fill="#065f46" stroke="#34d399"/>
+      <text x="644" y="21" font-size="13" fill="#a7f3d0" text-anchor="middle" font-weight="600">确认后归档</text>
+    </g>
+  </g>
+</svg>

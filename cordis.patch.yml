@@ -1,0 +1,12 @@
+# dsh-memory-fitting bundle patch: 把插件行插入 web profile roster。
+# 作为 profile bundle 层应用（dsh.bundle.patch 清单字段）。
+#
+# node 半边（exports "."）跑在 host 进程：
+#   - /api/memory-fitting/* 仅 loopback 的路由（state / config / start / archive / sessions）
+#   - memory_fit_start / memory_fit_ask / memory_fit_archive 三个 agent 工具
+# 浏览器半边（exports "./client"，由 /plugins/<id>/client.js 提供）：
+#   - 右下角悬窗（栈叠在 Ark9Canvas 之上，避让 cua FAB）
+#   - settings.section 设置页
+- insert:
+    - id: memory-fitting-pre
+      name: '@a9i5k4/dsh-memory-fitting'
