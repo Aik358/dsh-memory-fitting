@@ -84,6 +84,42 @@ export function registerRoutes(ctx, deps) {
       return writeJson(res, 200, { ok: true, entry, events })
     }
 
+    // GET /stats —— 留档统计（供悬窗显示"这些数据有没有用"）
+    if (method === 'GET' && rel === '/stats') {
+      const list = await store.listSessions()
+      const byStatus = {}
+      const byVerdict = {}
+      let rounds = 0
+      let questions = 0
+      let answered = 0
+      let corrections = 0
+      for (const s of list) {
+        byStatus[s.status] = (byStatus[s.status] || 0) + 1
+        rounds += s.rounds || 0
+        const events = await store.readSession(s.file)
+        for (const ev of events) {
+          if (ev.type === 'fit/ask') questions += (ev.questions || []).length
+          if (ev.type === 'fit/answer') answered += (ev.answers || []).length
+          if (ev.type === 'fit/feedback') {
+            byVerdict[ev.verdict] = (byVerdict[ev.verdict] || 0) + 1
+            if (ev.verdict === 'corrected') corrections++
+          }
+        }
+      }
+      const totalVerdicts = Object.values(byVerdict).reduce((a, b) => a + b, 0)
+      return writeJson(res, 200, {
+        ok: true,
+        sessions: list.length,
+        byStatus,
+        rounds,
+        questions,
+        answered,
+        byVerdict,
+        // 纠正率 = 样本信息量。越高越值得训练。
+        correctionRate: totalVerdicts ? corrections / totalVerdicts : 0,
+      })
+    }
+
     // GET /detect
     if (method === 'GET' && rel === '/detect') {
       return writeJson(res, 200, { ok: true, detected: await detectMemoryPlugins(), alive: await autoMemoryAlive() })

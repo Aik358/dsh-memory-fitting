@@ -21,6 +21,7 @@
  */
 var API = {
   state: '/api/memory-fitting/state',
+  stats: '/api/memory-fitting/stats',
   config: '/api/memory-fitting/config',
   session: '/api/memory-fitting/session',
   deleteSession: '/api/memory-fitting/session',
@@ -37,7 +38,7 @@ function req(path, opts) {
 var CHANNEL = 'memory-fitting'
 
 var state = {
-  config: null, sessions: [], detected: null, alive: false, sanitize: null,
+  config: null, sessions: [], detected: null, alive: false, sanitize: null, stats: null,
   tab: 'settings', detail: null, loading: true, error: null, toast: null,
   lastUtterance: '', confirmingDelete: null, editingTitle: null, open: false,
 }
@@ -159,6 +160,7 @@ function refresh() {
     }
     state.loading = false
     render()
+    req(API.stats).then(function (st) { if (st && st.ok) { state.stats = st; render() } }).catch(function () {})
   }).catch(function (e) {
     state.loading = false
     state.error = String(e && e.message ? e.message : e)
@@ -317,6 +319,19 @@ function statusBadge(s) {
 }
 
 function renderArchive(body) {
+  // 数据价值提示：这些留档不只是日志，是训练样本（见 docs/TRAINING.md）
+  if (state.stats && state.stats.sessions > 0) {
+    var card = el('div', 'mf-row')
+    var t = el('div', 'mf-t')
+    var answered = state.stats.answered || 0
+    var rate = Math.round((state.stats.correctionRate || 0) * 100)
+    t.appendChild(el('b', null, '已答 ' + answered + ' 题 · 纠正率 ' + rate + '%'))
+    t.appendChild(el('i', null, rate >= 20
+      ? '样本有信息量（纠正率越高越值得训练）'
+      : '纠正率偏低 —— 说明模型大多猜对了，样本信息量有限'))
+    card.appendChild(t)
+    body.appendChild(card)
+  }
   var top = el('div', 'mf-flex')
   top.style.marginBottom = '10px'
   var cnt = state.sessions.length
