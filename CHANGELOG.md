@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here.
 
+## [0.1.8] — 2026-09-16
+
+配置迁移。
+
+### 新增
+
+- `GET /api/memory-fitting/config-export` / `POST /api/memory-fitting/config-import`。
+- 设置页新增「配置迁移」区：**导出配置**（复制 JSON 到剪贴板）与**导入配置**。
+
+### 设计说明
+
+导入走**白名单**：只接受已知的配置字段，多余的一律丢弃。这样即使粘贴了别的东西进来，也不会把脏数据写进配置文件。
+
 ## [0.1.7] — 2026-09-16
 
 悬窗 UI 双语化。

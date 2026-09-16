@@ -27,6 +27,8 @@ var API = {
   deleteSession: '/api/memory-fitting/session',
   start: '/api/memory-fitting/start',
   export: '/api/memory-fitting/export',
+  configExport: '/api/memory-fitting/config-export',
+  configImport: '/api/memory-fitting/config-import',
   archive: '/api/memory-fitting/archive',
   rename: '/api/memory-fitting/rename',
 }
@@ -396,6 +398,37 @@ function renderSettings(body) {
   s3.appendChild(numRow('每轮问题数上限', '一轮最多问几个问题', 'maxQuestionsPerRound', 1, 8))
   s3.appendChild(numRow('整场轮数上限', '防止"问上瘾"，默认 4 轮封顶', 'maxRounds', 1, 12))
   body.appendChild(s3)
+
+  // 配置导入 / 导出
+  var sCfg = el('div', 'mf-sec')
+  sCfg.appendChild(el('h4', null, '配置迁移'))
+  var cfgRow = el('div', 'mf-flex')
+  var expCfg = el('div', 'mf-btn sec', '导出配置')
+  expCfg.onclick = function () {
+    req(API.configExport).then(function (r) {
+      if (!r || !r.ok) { toast('导出失败', true); return }
+      var txt = JSON.stringify(r.config, null, 2)
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt).then(function () { toast('配置已复制到剪贴板') }).catch(function () { toast(txt, false) })
+      } else { toast('剪贴板不可用', true) }
+    }).catch(function () { toast('导出失败', true) })
+  }
+  cfgRow.appendChild(expCfg)
+  var impCfg = el('div', 'mf-btn sec', '导入配置')
+  impCfg.onclick = function () {
+    var raw = prompt('粘贴配置 JSON：')
+    if (!raw) return
+    var parsed
+    try { parsed = JSON.parse(raw) } catch (e) { toast('JSON 解析失败', true); return }
+    req(API.configImport, { method: 'POST', body: JSON.stringify({ config: parsed }) }).then(function (r) {
+      if (r && r.ok) { state.config = r.config; render(); toast('已导入 ' + (r.applied || []).length + ' 项') }
+      else { toast('导入失败', true) }
+    }).catch(function () { toast('导入失败', true) })
+  }
+  cfgRow.appendChild(impCfg)
+  sCfg.appendChild(el('div', 'mf-mut', '把开关状态导出成 JSON，换机器时不用重新点一遍。'))
+  sCfg.appendChild(cfgRow)
+  body.appendChild(sCfg)
 
   var s4 = el('div', 'mf-sec')
   s4.appendChild(el('h4', null, '环境自检'))

@@ -180,6 +180,24 @@ export function registerRoutes(ctx, deps) {
       })
     }
 
+    // GET /config-export —— 导出配置（换机迁移不丢开关状态）
+    if (method === 'GET' && rel === '/config-export') {
+      const cfg = await store.readConfig()
+      return writeJson(res, 200, { ok: true, config: cfg, exportedAt: new Date().toISOString() })
+    }
+
+    // POST /config-import —— 导入配置（只接受已知字段，避免把脏数据写进配置）
+    if (method === 'POST' && rel === '/config-import') {
+      const body = await readBody(req)
+      const src = (body && body.config) || body || {}
+      const allowed = ['injectContext', 'writeMemory', 'exposeTools', 'localArchive', 'panelOpenByDefault', 'persistPanelOpen', 'maxQuestionsPerRound', 'maxRounds']
+      const patch = {}
+      for (const k of allowed) if (k in src) patch[k] = src[k]
+      const next = await store.writeConfig(patch)
+      await syncSwitches()
+      return writeJson(res, 200, { ok: true, config: next, applied: Object.keys(patch) })
+    }
+
     // GET /detect
     if (method === 'GET' && rel === '/detect') {
       return writeJson(res, 200, { ok: true, detected: await detectMemoryPlugins(), alive: await autoMemoryAlive() })
