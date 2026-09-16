@@ -127,6 +127,29 @@ DSH 的右下角本来就是一摞（dsh-cua 与 Ark9Canvas 都用"探测对方 
 
 > 这些留档不只是日志 —— 它们是**训练就绪**的样本。见 [训练路线图](docs/TRAINING.md)。
 
+### 这些数据将来能干什么
+
+每次拟合都在积累「同样的模糊输入下，模型给了 X，用户纠正成 Y」的样本 —— 这正是偏好优化（DPO / ORPO）最想要的形状。
+
+悬窗「留档」页会显示**纠正率**：
+
+- 纠正率高 → 模型经常猜错 → 样本含金量高
+- 纠正率低 → 模型本来就猜对 → 样本接近噪声
+
+**一键导出**：留档页点「导出偏好对」复制到剪贴板，或命令行 `npm run export`。
+
+~~~bash
+node scripts/export-training.mjs --intent-only --out pairs.jsonl
+~~~
+
+导出格式：
+
+~~~jsonc
+{ "prompt": "...", "chosen": "...", "rejected": ["..."], "verdict": "accepted", "scope": "intent" }
+~~~
+
+> `--intent-only` 不是可选项，是**必须**：训练时只能取 `scope=intent`。详见[训练路线图](docs/TRAINING.md)。
+
 ---
 
 ## ⚠️ 记忆写入安全带
