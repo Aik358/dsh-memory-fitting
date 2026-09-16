@@ -1,6 +1,6 @@
 {
   "name": "@a9i5k4/dsh-memory-fitting",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Intent fitting for DSH: the agent predicts several directions first, asks a batch of clarifying questions each round, narrows the distribution until one converges, then proposes it for your confirmation. Bottom-right floating panel, local JSONL archive, and both context injection and memory writes behind independent opt-in switches. 记忆拟合：AI 先预定若干方向（预测你的意图），每轮批量提问，轮间思考并展示方向可信度，收敛后提案待确认。右下角悬窗 + 本地留档；上下文注入与记忆写入各自独立开关，默认关闭。",
   "type": "module",
   "main": "lib/index.js",

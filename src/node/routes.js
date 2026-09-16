@@ -120,6 +120,66 @@ export function registerRoutes(ctx, deps) {
       })
     }
 
+    // GET /export —— 导出偏好对（与 scripts/export-training.mjs 同逻辑，供悬窗一键取用）
+    if (method === 'GET' && rel === '/export') {
+      const url = new URL(req.url, 'http://127.0.0.1')
+      const intentOnly = url.searchParams.get('intentOnly') !== 'false'
+      const list = await store.listSessions()
+      const pairs = []
+      for (const s of list) {
+        const events = await store.readSession(s.file)
+        let utterance = ''
+        let directions = []
+        const rounds = []
+        let conclusion = null
+        let finish = null
+        for (const ev of events) {
+          if (ev.type === 'fit/start') utterance = ev.utterance || ''
+          if (ev.type === 'fit/directions') directions = ev.directions || []
+          if (ev.type === 'fit/ask') rounds.push({ index: ev.round, questions: ev.questions || [], answers: null })
+          if (ev.type === 'fit/answer') {
+            const r0 = rounds.find((x) => x.index === ev.round)
+            if (r0) r0.answers = ev.answers || []
+          }
+          if (ev.type === 'fit/propose') conclusion = ev.conclusion
+          if (ev.type === 'fit/finish') finish = ev
+        }
+        for (const r0 of rounds) {
+          if (!r0.answers || !r0.answers.length) continue
+          for (const q of r0.questions) {
+            const a = r0.answers.find((x) => x.id === q.id)
+            if (!a) continue
+            const chosen = a.custom || (a.selected || []).join('、')
+            if (!chosen) continue
+            const rejected = (q.options || []).map((o) => o.label).filter((l) => l !== chosen)
+            if (!rejected.length) continue
+            pairs.push({
+              prompt: utterance + (r0.index > 1 ? ' [第' + r0.index + '轮]' : '') + '\n问：' + q.question,
+              chosen, rejected, verdict: 'accepted', scope: 'intent',
+              meta: { session: s.id, round: r0.index, questionId: q.id },
+            })
+          }
+        }
+        if (conclusion && conclusion.winner && directions.length > 1) {
+          pairs.push({
+            prompt: utterance + '\n（请判断用户最终想要哪一个方向）',
+            chosen: conclusion.winner,
+            rejected: directions.map((d) => d.label).filter((l) => l !== conclusion.winner),
+            verdict: finish && finish.accepted ? 'accepted' : 'rejected',
+            scope: 'intent',
+            meta: { session: s.id, final: true, confidence: conclusion.confidence ?? null },
+          })
+        }
+      }
+      const out = intentOnly ? pairs.filter((p) => p.scope === 'intent') : pairs
+      return writeJson(res, 200, {
+        ok: true,
+        count: out.length,
+        intentOnly,
+        jsonl: out.map((p) => JSON.stringify(p)).join('\n') + (out.length ? '\n' : ''),
+      })
+    }
+
     // GET /detect
     if (method === 'GET' && rel === '/detect') {
       return writeJson(res, 200, { ok: true, detected: await detectMemoryPlugins(), alive: await autoMemoryAlive() })

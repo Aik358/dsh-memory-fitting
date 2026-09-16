@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here.
 
+## [0.1.5] — 2026-09-16
+
+留档页可以一键导出训练数据。
+
+### 新增
+
+- `GET /api/memory-fitting/export`：把留档导出为偏好对（与 `scripts/export-training.mjs` 同一套逻辑）。
+- 悬窗「留档」页新增 **「导出偏好对」** 按钮 —— 点一下把 JSONL 复制到剪贴板，可以直接粘进训练脚本。
+
+### 说明
+
+命令行版（`npm run export`）适合写进流水线；悬窗版适合随手取用。两者产出格式完全一致。
+
 ## [0.1.4] — 2026-09-16
 
 留档页显示「这批数据有没有用」。
