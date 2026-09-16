@@ -17,7 +17,14 @@ import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { randomBytes } from 'node:crypto'
 
+/**
+ * 数据根目录。
+ * 默认 ~/.dsh/memory-fitting，可用环境变量 MEMORY_FITTING_ROOT 覆盖 ——
+ * 既方便用户换位置，也让自动化测试指向临时目录（不污染真实留档）。
+ */
 export function rootDir() {
+  const override = process.env.MEMORY_FITTING_ROOT
+  if (override && String(override).trim()) return String(override).trim()
   return join(homedir(), '.dsh', 'memory-fitting')
 }
 export function sessionsDir() {
@@ -53,9 +60,13 @@ export const DEFAULT_CONFIG = {
 }
 
 let cachedConfig = null
+let cachedFor = null
 
 export async function readConfig() {
-  if (cachedConfig) return cachedConfig
+  // 缓存按根目录区分 —— 否则测试与真实环境会串用同一份缓存
+  const dir = rootDir()
+  if (cachedConfig && cachedFor === dir) return cachedConfig
+  cachedFor = dir
   try {
     const raw = await readFile(configPath(), 'utf8')
     const parsed = JSON.parse(raw.replace(/^\uFEFF/, ''))
@@ -72,6 +83,7 @@ export async function writeConfig(patch) {
   await mkdir(rootDir(), { recursive: true })
   await writeFile(configPath(), JSON.stringify(next, null, 2) + '\n', 'utf8')
   cachedConfig = next
+  cachedFor = rootDir()
   return next
 }
 

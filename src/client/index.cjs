@@ -82,7 +82,8 @@ var STR = {
     needUtterance: '请先写下触发语', createFail: '创建失败', netErr: '网络错误',
     saveFail: '设置保存失败', copied: ' 条偏好对到剪贴板', clipboardNo: '剪贴板不可用',
     noPairs: '还没有可导出的偏好对（需要先答过题）',
-    tooltipOpen: '记忆拟合', tooltipClose: '收起（不影响后台留档）', tooltipSwitch: '点击切换',
+    tooltipOpen: '记忆拟合', tooltipClose: '关闭面板（留档不受影响）', tooltipSwitch: '点击切换',
+    posReset: '面板位置已复位', dragHint: '拖动标题栏可移动 · 双击复位',
   },
   en: {
     title: 'Memory Fitting', tabSettings: 'Settings', tabArchive: 'Archive', tabFit: 'New fitting',
@@ -121,7 +122,8 @@ var STR = {
     needUtterance: 'Write a trigger line first', createFail: 'Create failed', netErr: 'network error',
     saveFail: 'Failed to save settings', copied: ' preference pairs copied to clipboard', clipboardNo: 'Clipboard unavailable',
     noPairs: 'No exportable pairs yet (answer some questions first)',
-    tooltipOpen: 'Memory Fitting', tooltipClose: 'Collapse (archiving continues)', tooltipSwitch: 'Click to toggle',
+    tooltipOpen: 'Memory Fitting', tooltipClose: 'Close panel (archiving is unaffected)', tooltipSwitch: 'Click to toggle',
+    posReset: 'Panel position reset', dragHint: 'Drag the title bar to move · double-click to reset',
   },
 }
 
@@ -172,10 +174,17 @@ function ensureStyle() {
     'border:1px solid rgba(255,255,255,.14);background:rgba(24,26,32,.88);backdrop-filter:blur(22px) saturate(1.3);',
     '-webkit-backdrop-filter:blur(22px) saturate(1.3);color:#e6e8ec;box-shadow:0 18px 50px rgba(0,0,0,.45);',
     'font:13px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}',
-    '.mf-hd{display:flex;align-items:center;gap:6px;padding:11px 13px;border-bottom:1px solid rgba(255,255,255,.09);flex-shrink:0}',
-    '.mf-hd b{font-size:13px;font-weight:700;flex:1;letter-spacing:.2px}',
-    '.mf-x{cursor:pointer;opacity:.55;padding:3px 7px;border-radius:7px;font-size:13px;line-height:1}',
-    '.mf-x:hover{opacity:1;background:rgba(255,255,255,.09)}',
+    '.mf-hd{display:flex;align-items:center;gap:6px;padding:9px 11px;border-bottom:1px solid rgba(255,255,255,.09);flex-shrink:0;',
+    'cursor:move;user-select:none;-webkit-user-select:none;touch-action:none}',
+    '.mf-hd b{font-size:13px;font-weight:700;flex:1;min-width:0;letter-spacing:.2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    '.mf-hd .mf-grip{opacity:.4;font-size:11px;flex-shrink:0;letter-spacing:-1px}',
+    '.mf-hd .mf-badge{flex-shrink:0}',
+    '.mf-x{cursor:pointer;opacity:.62;padding:4px 8px;border-radius:7px;font-size:12.5px;line-height:1;flex-shrink:0}',
+    '.mf-x:hover{opacity:1;background:rgba(255,255,255,.1)}',
+    '.mf-close{cursor:pointer;flex-shrink:0;width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,.18);',
+    'background:rgba(255,255,255,.08);color:#e6e8ec;font-size:12px;line-height:20px;text-align:center;padding:0;font-family:inherit}',
+    '.mf-close:hover{background:rgba(239,68,68,.34);border-color:rgba(239,68,68,.55);color:#fff}',
+    '.mf-panel.mf-dragging{box-shadow:0 26px 64px rgba(0,0,0,.58)}',
     '.mf-tabs{display:flex;gap:3px;padding:9px 13px 0;flex-shrink:0}',
     '.mf-tab{cursor:pointer;padding:6px 11px;border-radius:8px;font-size:12px;opacity:.6;font-weight:600;transition:all .13s}',
     '.mf-tab:hover{background:rgba(255,255,255,.06);opacity:.85}',
@@ -293,13 +302,20 @@ function setConfig(patch) {
 
 var panelRoot = null, panelHost = null, fabRoot = null
 
+/** 内嵌模式（DSH 设置页内）：只渲染内容，不渲染标题栏/关闭按钮/标签页 ——
+ *  那些属于浮动面板的窗口装饰，在设置页里出现会造成"关闭按钮关了别的东西"的困惑。 */
+var renderInline = false
+
 function render() {
   if (!panelRoot || !panelHost) return
   panelHost.innerHTML = ''
-  panelHost.appendChild(renderHeader())
-  panelHost.appendChild(renderTabs())
+  if (!renderInline) {
+    panelHost.appendChild(renderHeader())
+    panelHost.appendChild(renderTabs())
+  }
   var body = el('div', 'mf-body')
-  if (state.loading) body.appendChild(el('div', 'mf-empty', '加载中…'))
+  if (renderInline) body.style.cssText = 'overflow:visible;padding:0;max-height:none'
+  if (state.loading) body.appendChild(el('div', 'mf-empty', T().loading))
   else {
     if (state.error) body.appendChild(el('div', 'mf-err', '错误：' + state.error))
     if (state.tab === 'settings') renderSettings(body)
@@ -307,24 +323,29 @@ function render() {
     else renderFit(body)
   }
   panelHost.appendChild(body)
+  if (!renderInline) mountDrag()
 }
 
 function renderHeader() {
   var h = el('div', 'mf-hd')
+  h.title = T().dragHint
   var t = T()
+  h.appendChild(el('span', 'mf-grip', '⋮⋮'))
   h.appendChild(el('b', null, t.title))
   var c = state.config || {}
   h.appendChild(el('span', 'mf-badge ' + (c.injectContext ? 'ok' : 'mut'), t.inject + (c.injectContext ? t.on : t.off)))
   h.appendChild(el('span', 'mf-badge ' + (c.writeMemory ? 'ok' : 'mut'), t.mem + (c.writeMemory ? t.on : t.off)))
-  // 语言切换按钮
+  // 语言切换
   var langBtn = el('span', 'mf-x', LANG === 'zh' ? 'EN' : '中')
   langBtn.title = 'Language / 语言'
-  langBtn.onclick = function () { setLang(LANG === 'zh' ? 'en' : 'zh') }
+  langBtn.onclick = function (e) { e.stopPropagation(); setLang(LANG === 'zh' ? 'en' : 'zh') }
   h.appendChild(langBtn)
-  var x = el('span', 'mf-x', '✕')
+  // 关闭：独立明显按钮，不再与语言按钮共用样式（原来两者视觉上难以区分，容易被忽略）
+  var x = el('div', 'mf-close', '✕')
   x.title = t.tooltipClose
-  x.onclick = function () { setOpen(false) }
+  x.onclick = function (e) { e.stopPropagation(); setOpen(false) }
   h.appendChild(x)
+  // 拖动绑定（在 mountDrag 里做，避免每次 render 重复绑定）
   return h
 }
 
@@ -714,21 +735,149 @@ function setOpen(v, silent) {
   state.open = !!v
   panelRoot.style.display = v ? 'flex' : 'none'
   if (fabRoot) fabRoot.className = 'mf-fab' + (v ? ' mf-on' : '')
-  if (v) refresh()
+  if (v) { refresh(); applySavedPos() }
   if (!silent) {
     var c = state.config
     if (c && c.persistPanelOpen) setConfig({ panelOpenByDefault: !!v })
   }
 }
 
+/* ───────────────── 拖动与位置记忆 ─────────────────
+ * 位置存在 localStorage（不进插件配置：挪个窗口不该触发服务端写盘）。
+ * 拖动时切换到 left/top 定位，并把 right/bottom 置空，避免两套定位互相打架。
+ */
+
+var POS_KEY = 'mf-panel-pos'
+var dragState = null
+
+function readSavedPos() {
+  try {
+    var raw = localStorage.getItem(POS_KEY)
+    if (!raw) return null
+    var p = JSON.parse(raw)
+    if (typeof p.x !== 'number' || typeof p.y !== 'number') return null
+    return p
+  } catch (e) { return null }
+}
+
+function savePos(x, y) {
+  try { localStorage.setItem(POS_KEY, JSON.stringify({ x: Math.round(x), y: Math.round(y) })) } catch (e) {}
+}
+
+function clearSavedPos() {
+  try { localStorage.removeItem(POS_KEY) } catch (e) {}
+}
+
+/** 把面板切成绝对定位（left/top），供拖动使用。 */
+function useAbsolutePos(x, y) {
+  panelRoot.style.right = 'auto'
+  panelRoot.style.bottom = 'auto'
+  panelRoot.style.left = x + 'px'
+  panelRoot.style.top = y + 'px'
+}
+
+/** 恢复上次的位置；没有记录则回落到默认布局。 */
+function applySavedPos() {
+  if (!panelRoot) return
+  var p = readSavedPos()
+  if (!p) return
+  var rect = panelRoot.getBoundingClientRect()
+  // 窗口变小后旧位置可能跑到屏幕外，夹回可视区
+  var maxX = Math.max(0, (window.innerWidth || 1200) - 80)
+  var maxY = Math.max(0, (window.innerHeight || 800) - 40)
+  var x = Math.min(Math.max(0, p.x), maxX)
+  var y = Math.min(Math.max(0, p.y), maxY)
+  if (rect.width) x = Math.min(x, Math.max(0, (window.innerWidth || 1200) - rect.width))
+  if (rect.height) y = Math.min(y, Math.max(0, (window.innerHeight || 800) - rect.height))
+  useAbsolutePos(x, y)
+}
+
+/** 把位置复位到默认（右侧那一列左边）。 */
+function resetPos() {
+  if (!panelRoot) return
+  clearSavedPos()
+  panelRoot.style.left = 'auto'
+  panelRoot.style.top = 'auto'
+  fitPanel()
+}
+
+function mountDrag() {
+  var handle = panelHost && panelHost.querySelector('.mf-hd')
+  if (!handle || handle.dataset.dragBound) return
+  handle.dataset.dragBound = '1'
+
+  var start = function (e) {
+    // 只响应主键；点在按钮上不触发拖动
+    if (e.button != null && e.button !== 0) return
+    if (e.target && e.target.closest && e.target.closest('.mf-close, .mf-x, .mf-sw, .mf-btn, input, textarea, select')) return
+    var rect = panelRoot.getBoundingClientRect()
+    dragState = {
+      dx: e.clientX - rect.left,
+      dy: e.clientY - rect.top,
+      moved: false,
+    }
+    // 拖动期间切绝对定位，避免 right/bottom 与 left/top 打架
+    useAbsolutePos(rect.left, rect.top)
+    panelRoot.classList.add('mf-dragging')
+    if (handle.setPointerCapture && e.pointerId != null) {
+      try { handle.setPointerCapture(e.pointerId) } catch (err) {}
+    }
+    e.preventDefault()
+  }
+
+  var move = function (e) {
+    if (!dragState) return
+    var w = panelRoot.offsetWidth || 420
+    var h = panelRoot.offsetHeight || 400
+    var vw = window.innerWidth || 1200
+    var vh = window.innerHeight || 800
+    // 夹在可视区内，但至少留 60px 露头，避免拖丢
+    var x = Math.min(Math.max(e.clientX - dragState.dx, 60 - w), vw - 60)
+    var y = Math.min(Math.max(e.clientY - dragState.dy, 0), vh - 32)
+    if (Math.abs(x - (e.clientX - dragState.dx)) > 0.5 || Math.abs(y - (e.clientY - dragState.dy)) > 0.5) {
+      // 被夹住了
+    }
+    dragState.moved = true
+    useAbsolutePos(x, y)
+    e.preventDefault()
+  }
+
+  var end = function (e) {
+    if (!dragState) return
+    if (dragState.moved) {
+      var rect = panelRoot.getBoundingClientRect()
+      savePos(rect.left, rect.top)
+    }
+    dragState = null
+    panelRoot.classList.remove('mf-dragging')
+  }
+
+  handle.addEventListener('pointerdown', start)
+  handle.addEventListener('pointermove', move)
+  handle.addEventListener('pointerup', end)
+  handle.addEventListener('pointercancel', end)
+  // 双击标题栏复位
+  handle.addEventListener('dblclick', function (e) {
+    if (e.target && e.target.closest && e.target.closest('.mf-close, .mf-x')) return
+    resetPos()
+    toast(T().posReset || '面板位置已复位')
+  })
+}
+
 /** 窄屏兜底：右侧那一列占满宽度时，面板改为居中浮层，避免负宽度。 */
 function fitPanel() {
   if (!panelRoot) return
+  // 用户手动挪过位置就别再自动摆布
+  if (readSavedPos()) { applySavedPos(); return }
   var w = window.innerWidth || 1200
   if (w < 900) {
+    panelRoot.style.left = 'auto'
+    panelRoot.style.top = 'auto'
     panelRoot.style.right = '16px'
     panelRoot.style.width = 'min(420px, calc(100vw - 32px))'
   } else {
+    panelRoot.style.left = 'auto'
+    panelRoot.style.top = 'auto'
     panelRoot.style.right = '472px'
     panelRoot.style.width = '420px'
   }
@@ -738,6 +887,7 @@ function fitPanel() {
 
 function apply(ctx) {
   ensureMounted()
+  mountDrag()
   fitPanel()
 
   // 工作区路径：从会话快照尽力获取（拿不到不报错，只影响锚点可读性）
@@ -768,11 +918,14 @@ function apply(ctx) {
             var host = document.createElement('div')
             host.style.cssText = 'padding:4px 2px 12px;color:inherit'
             var saveHost = panelHost
+            var saveInline = renderInline
             var tmp = document.createElement('div')
             tmp.className = 'mf-body'
             tmp.style.cssText = 'overflow:visible;padding:0;max-height:none'
             panelHost = tmp
+            renderInline = true
             render()
+            renderInline = saveInline
             panelHost = saveHost
             host.appendChild(tmp)
             return host

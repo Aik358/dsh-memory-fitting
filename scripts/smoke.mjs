@@ -1,12 +1,20 @@
 /**
  * 回归冒烟 v2 —— 覆盖审计后修复与新增的路径。
  */
-import { readFile } from 'node:fs/promises'
+import { readFile, mkdtemp, rm } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import { selfTest, guard, reservedOpenSequence, containsReserved } from '../src/node/sanitize.js'
-import * as store from '../src/node/store.js'
-import * as fitting from '../src/node/fitting.js'
-import { buildConclusionNote } from '../src/node/memory-adapter.js'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+// ⚠️ 测试隔离：必须在加载业务模块【之前】把数据根目录指到临时位置，
+// 否则会读写用户的真实留档与配置 —— 本测试曾因此误判失败（用户改了开关就让测试变红）。
+const TEST_ROOT = await mkdtemp(join(tmpdir(), 'mf-smoke-'))
+process.env.MEMORY_FITTING_ROOT = TEST_ROOT
+
+const { selfTest, guard, reservedOpenSequence, containsReserved } = await import('../src/node/sanitize.js')
+const store = await import('../src/node/store.js')
+const fitting = await import('../src/node/fitting.js')
+const { buildConclusionNote } = await import('../src/node/memory-adapter.js')
 
 let pass = 0, fail = 0
 const t = (name, cond, extra) => {
@@ -62,15 +70,18 @@ t('client 零 require（最安全）', reqs.length === 0, reqs.join(','))
 const ext = [...nodeB.matchAll(/from\s*["'](@[^"']+)["']/g)].map((m) => m[1])
 t('node 侧零外部包依赖', ext.length === 0, ext.join(','))
 
-console.log('== 4. 配置默认值 ==')
+console.log('== 4. 配置默认值（断言出厂默认，不读用户实际配置）==')
+const D = store.DEFAULT_CONFIG
+t('injectContext 默认 false', D.injectContext === false)
+t('writeMemory 默认 false', D.writeMemory === false)
+t('exposeTools 默认 false', D.exposeTools === false)
+t('localArchive 默认 true', D.localArchive === true)
+t('persistPanelOpen 默认 true', D.persistPanelOpen === true)
+t('maxRounds 默认 4', D.maxRounds === 4)
+t('maxQuestionsPerRound 默认 4', D.maxQuestionsPerRound === 4)
+t('数据根目录已被测试指向临时位置', store.rootDir() === TEST_ROOT, store.rootDir())
 const cfg = await store.readConfig()
-t('injectContext 默认 false', cfg.injectContext === false)
-t('writeMemory 默认 false', cfg.writeMemory === false)
-t('exposeTools 默认 false', cfg.exposeTools === false)
-t('localArchive 默认 true', cfg.localArchive === true)
-t('persistPanelOpen 默认 true', cfg.persistPanelOpen === true)
-t('maxRounds 默认 4', cfg.maxRounds === 4)
-t('maxQuestionsPerRound 默认 4', cfg.maxQuestionsPerRound === 4)
+t('临时目录配置可读', !!cfg && cfg.localArchive === true)
 t('writeIndex 存在', typeof store.writeIndex === 'function')
 t('deleteSession 存在', typeof store.deleteSession === 'function')
 
@@ -116,6 +127,11 @@ t('deleteSession 成功', del.ok, JSON.stringify(del))
 t('会话文件已删除', !existsSync(sess.file))
 const after = await store.listSessions()
 t('索引中已移除', !after.find((x) => x.id === sess.id))
+
+console.log('')
+console.log('== 8. 清理测试临时目录 ==')
+try { await rm(TEST_ROOT, { recursive: true, force: true }) } catch (e) { /* ignore */ }
+t('临时目录已清理（未污染真实留档）', !existsSync(TEST_ROOT))
 
 console.log('')
 console.log('通过 ' + pass + ' / 失败 ' + fail)
