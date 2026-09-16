@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented here.
 
+## [0.1.2] — 2026-09-16
+
+训练就绪字段补全（对齐 `docs/TRAINING.md` 阶段 1 的待补项）。
+
+### 新增
+
+- `fit/feedback` 增加三个字段：
+  - **`scope`**：`intent`（可进画像）或 `fact`（只走纠正通道）。训练时**只取 `intent`** —— 否则会把用户的事实性错误学成偏好，变成谄媚。
+  - **`rejectedReason`**：提案被拒时"错在哪"。比单纯的 `rejected` 更有信息量。
+  - **`deliberate`**：用户是深思熟虑还是随手一点，用于样本质量分层。
+- 发布助手 `scripts/release.mjs`：一条命令走完 bump → 构建 → 测试 → 提交 → 推送 → tag → npm。
+
+### 说明
+
+这三个字段现在只是**在采集**，尚未被任何训练流程消费。它们的价值在于：等端侧模型可训练时，不必回头重采。
+
 ## [0.1.1] — 2026-09-16
 
 文档发布。

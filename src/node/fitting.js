@@ -121,7 +121,10 @@ export async function finish(sess, { accepted, note }) {
  * fit/feedback —— 训练就绪的三元组（DESIGN.md §10.7）。
  * 将来端侧模型可训练时直接可用；现在只采集。
  */
-export async function recordFeedback(sess, { context, modelDid, userSaid, verdict, preference }) {
+export async function recordFeedback(sess, {
+  context, modelDid, userSaid, verdict, preference,
+  scope, rejectedReason, deliberate,
+} = {}) {
   await store.appendEvent(sess, {
     type: 'fit/feedback',
     context: String(context || '').slice(0, 800),
@@ -129,6 +132,14 @@ export async function recordFeedback(sess, { context, modelDid, userSaid, verdic
     userSaid: String(userSaid || '').slice(0, 800),
     verdict: ['accepted', 'corrected', 'rejected'].includes(verdict) ? verdict : 'accepted',
     preference: String(preference || '').slice(0, 400),
+    // ── 训练就绪字段（见 docs/TRAINING.md 阶段 1）──
+    // scope: intent = 可进画像 / fact = 只走纠正通道。训练时【只取 intent】，
+    //        否则会把用户的事实性错误学成偏好 → 谄媚。
+    scope: scope === 'fact' ? 'fact' : 'intent',
+    // rejectedReason: 提案被拒时"错在哪"。比单纯 rejected 更有信息量。
+    rejectedReason: rejectedReason ? String(rejectedReason).slice(0, 400) : null,
+    // deliberate: 用户是深思熟虑还是随手一点。用于样本质量分层。
+    deliberate: deliberate === false ? false : true,
   })
   return true
 }
