@@ -38,6 +38,108 @@ function req(path, opts) {
 
 var CHANNEL = 'memory-fitting'
 
+/* ───────────────── 双语 UI ─────────────────
+ * 与 README / USER-GUIDE 的双语体系对齐。语言选择持久化在 localStorage，
+ * 与插件配置解耦（改 UI 语言不应触发服务端写盘）。
+ */
+var STR = {
+  zh: {
+    title: '记忆拟合', tabSettings: '设置', tabArchive: '留档', tabFit: '开始拟合',
+    inject: '注入', mem: '记忆', on: '开', off: '关', loading: '加载中…',
+    err: '错误：', refresh: '刷新', export: '导出偏好对', exporting: '导出中…',
+    swInject: '注入会话上下文', swInjectD: '每轮注入一段极短说明，让模型知道可主动发起拟合。开启才有 token 开销',
+    swMem: '写入记忆插件', swMemD: '把收敛结论写进 dsh-auto-memory。默认关闭以避免耦合',
+    swTools: '向模型暴露工具', swToolsD: '模型可见 memory_fit_* 工具。注册即占每轮 tool 上下文',
+    swArch: '本地留档', swArchD: '拟合全过程写入 ~/.dsh/memory-fitting/sessions/（隔离于其它插件）',
+    swPersist: '记住悬窗开合', swPersistD: '关闭则每次启动都收起悬窗',
+    secSurface: '污染面开关 · 默认关闭', secStore: '本插件自己的存储', secParams: '拟合参数', secEnv: '环境自检',
+    pQ: '每轮问题数上限', pQD: '一轮最多问几个问题',
+    pR: '整场轮数上限', pRD: '防止"问上瘾"，默认 4 轮封顶',
+    amName: 'dsh-auto-memory', amNone: '未检测到（不影响本地留档）',
+    amAlive: '已检测到 · 实例存活', amDead: '已检测到 · 实例未响应',
+    sbName: '写入安全带', sbDesc: '归档前对用户原话做字符级改写，防止锚点击穿记忆文件',
+    ok: '通过', bad: '异常', okShort: 'OK', none: '—',
+    empty: '还没有留档。\n到「开始拟合」页发起一次。',
+    back: '← 返回列表', confirmArch: '确认并归档', archiving: '归档中…',
+    rename: '改标题', renamePrompt: '给这条留档起个可读标题（拟合后回填节点名）',
+    del: '删除', delQ: '删除这条留档？会话文件与索引项都会被移除，不可恢复。',
+    delYes: '确认删除', delNo: '取消', deleting: '删除中…',
+    stAccepted: '已确认', stProposed: '待确认', stFitting: '进行中', stDismissed: '已放弃',
+    fitTitle: '发起一次拟合', fitHint: '写下触发语 → 开始 → 到聊天窗口回答模型提出的问题。',
+    fitPh: '例如：帮我把记忆这部分弄好一点，感觉不太行。',
+    fitStart: '立即开始', fitStartD: '在本地建立拟合会话并记入留档', fitGo: '开始', fitCreating: '创建中…',
+    fitViaAi: '让 AI 主动发起',
+    fitViaAiOn: '已开启工具暴露：直接对 AI 说「我还没想清楚，帮我拟合一下意图」即可。',
+    fitViaAiOff: '工具暴露当前关闭（默认）。到设置页打开「向模型暴露工具」，或直接在本页发起。',
+    flow: '拟合流程',
+    flowText: '① AI 预定 3-5 个方向（预测你的意图）\n② 每轮针对"分不开的方向"提 2-4 个问题\n③ 一次问一批，你逐个作答\n④ 轮间思考并展示方向可信度\n⑤ 收敛后提案，你确认 → 归档',
+    statLine: function (a, r) { return '已答 ' + a + ' 题 · 纠正率 ' + r + '%' },
+    statGood: '样本有信息量（纠正率越高越值得训练）',
+    statLow: '纠正率偏低 —— 说明模型大多猜对了，样本信息量有限',
+    evCount: '事件流 · ', evFrames: ' 帧', evEmpty: '（空）',
+    needUtterance: '请先写下触发语', createFail: '创建失败', netErr: '网络错误',
+    saveFail: '设置保存失败', copied: ' 条偏好对到剪贴板', clipboardNo: '剪贴板不可用',
+    noPairs: '还没有可导出的偏好对（需要先答过题）',
+    tooltipOpen: '记忆拟合', tooltipClose: '收起（不影响后台留档）', tooltipSwitch: '点击切换',
+  },
+  en: {
+    title: 'Memory Fitting', tabSettings: 'Settings', tabArchive: 'Archive', tabFit: 'New fitting',
+    inject: 'Inject', mem: 'Memory', on: 'on', off: 'off', loading: 'Loading…',
+    err: 'Error: ', refresh: 'Refresh', export: 'Export pairs', exporting: 'Exporting…',
+    swInject: 'Inject session context', swInjectD: 'One short note per turn so the model knows it may start a fitting. Costs tokens only when on.',
+    swMem: 'Write to memory plugin', swMemD: 'Write the converged conclusion into dsh-auto-memory. Off by default to avoid coupling.',
+    swTools: 'Expose tools to the model', swToolsD: 'The model can see the memory_fit_* tools. Registration costs tool-schema context every turn.',
+    swArch: 'Local archive', swArchD: 'Write the whole fitting to ~/.dsh/memory-fitting/sessions/ (isolated from other plugins)',
+    swPersist: 'Remember panel state', swPersistD: 'Off means the panel starts collapsed every launch',
+    secSurface: 'Contamination surface · all off by default', secStore: 'This plugin\'s own storage', secParams: 'Fitting parameters', secEnv: 'Environment check',
+    pQ: 'Max questions per round', pQD: 'How many questions one round may contain',
+    pR: 'Max rounds', pRD: 'Guards against asking forever; 4 by default',
+    amName: 'dsh-auto-memory', amNone: 'not detected (local archive unaffected)',
+    amAlive: 'detected · instance alive', amDead: 'detected · instance not responding',
+    sbName: 'Write seatbelt', sbDesc: 'Character-level rewriting of user text before archiving, so the memory file cannot be locked',
+    ok: 'pass', bad: 'FAIL', okShort: 'OK', none: 'n/a',
+    empty: 'No archives yet.\nStart one from the "New fitting" tab.',
+    back: '← Back to list', confirmArch: 'Confirm and archive', archiving: 'Archiving…',
+    rename: 'Rename', renamePrompt: 'Give this archive a readable title (a work-node name works well)',
+    del: 'Delete', delQ: 'Delete this archive? The session file and index entry are removed. Irreversible.',
+    delYes: 'Confirm delete', delNo: 'Cancel', deleting: 'Deleting…',
+    stAccepted: 'confirmed', stProposed: 'pending', stFitting: 'in progress', stDismissed: 'abandoned',
+    fitTitle: 'Start a fitting', fitHint: 'Write a trigger line → Start → answer the questions in the chat window.',
+    fitPh: 'e.g. Just make that memory part better, it feels off.',
+    fitStart: 'Start now', fitStartD: 'Create the fitting session locally and record it in the archive', fitGo: 'Start', fitCreating: 'Creating…',
+    fitViaAi: 'Let the agent start it',
+    fitViaAiOn: 'Tool exposure is on: just say "I have not figured out what I want — fit my intent."',
+    fitViaAiOff: 'Tool exposure is off (default). Turn on "Expose tools" in Settings, or start from this tab.',
+    flow: 'How it works',
+    flowText: '1. The agent predicts 3-5 directions\n2. Each round asks 2-4 questions about what still cannot be told apart\n3. One batch of questions, you answer each\n4. It thinks between rounds and shows direction confidence\n5. On convergence it proposes; you confirm → archive',
+    statLine: function (a, r) { return a + ' answered · ' + r + '% corrected' },
+    statGood: 'The samples carry signal (higher correction rate = more worth training on)',
+    statLow: 'Low correction rate — the model mostly guessed right, so samples carry limited signal',
+    evCount: 'Event stream · ', evFrames: ' frames', evEmpty: '(empty)',
+    needUtterance: 'Write a trigger line first', createFail: 'Create failed', netErr: 'network error',
+    saveFail: 'Failed to save settings', copied: ' preference pairs copied to clipboard', clipboardNo: 'Clipboard unavailable',
+    noPairs: 'No exportable pairs yet (answer some questions first)',
+    tooltipOpen: 'Memory Fitting', tooltipClose: 'Collapse (archiving continues)', tooltipSwitch: 'Click to toggle',
+  },
+}
+
+function detectLang() {
+  try {
+    var saved = localStorage.getItem('mf-lang')
+    if (saved === 'zh' || saved === 'en') return saved
+    var nav = (navigator.language || '').toLowerCase()
+    if (nav.indexOf('zh') === 0) return 'zh'
+    return 'en'
+  } catch (e) { return 'zh' }
+}
+var LANG = detectLang()
+function T() { return STR[LANG] || STR.zh }
+function setLang(l) {
+  LANG = (l === 'en') ? 'en' : 'zh'
+  try { localStorage.setItem('mf-lang', LANG) } catch (e) {}
+  render(); renderHeaderLang()
+}
+
 var state = {
   config: null, sessions: [], detected: null, alive: false, sanitize: null, stats: null,
   tab: 'settings', detail: null, loading: true, error: null, toast: null,
@@ -207,22 +309,32 @@ function render() {
 
 function renderHeader() {
   var h = el('div', 'mf-hd')
-  h.appendChild(el('b', null, '记忆拟合'))
+  var t = T()
+  h.appendChild(el('b', null, t.title))
   var c = state.config || {}
-  var inj = el('span', 'mf-badge ' + (c.injectContext ? 'ok' : 'mut'), '注入' + (c.injectContext ? '开' : '关'))
-  h.appendChild(inj)
-  var mem = el('span', 'mf-badge ' + (c.writeMemory ? 'ok' : 'mut'), '记忆' + (c.writeMemory ? '开' : '关'))
-  h.appendChild(mem)
+  h.appendChild(el('span', 'mf-badge ' + (c.injectContext ? 'ok' : 'mut'), t.inject + (c.injectContext ? t.on : t.off)))
+  h.appendChild(el('span', 'mf-badge ' + (c.writeMemory ? 'ok' : 'mut'), t.mem + (c.writeMemory ? t.on : t.off)))
+  // 语言切换按钮
+  var langBtn = el('span', 'mf-x', LANG === 'zh' ? 'EN' : '中')
+  langBtn.title = 'Language / 语言'
+  langBtn.onclick = function () { setLang(LANG === 'zh' ? 'en' : 'zh') }
+  h.appendChild(langBtn)
   var x = el('span', 'mf-x', '✕')
-  x.title = '收起（不影响后台留档）'
+  x.title = t.tooltipClose
   x.onclick = function () { setOpen(false) }
   h.appendChild(x)
   return h
 }
 
+function renderHeaderLang() {
+  var fab = document.getElementById('mf-fab-root')
+  if (fab && fab.lastChild) fab.lastChild.textContent = T().title
+}
+
 function renderTabs() {
   var wrap = el('div', 'mf-tabs')
-  ;[['settings', '设置'], ['archive', '留档'], ['fit', '开始拟合']].forEach(function (t) {
+  var L = T()
+  ;[['settings', L.tabSettings], ['archive', L.tabArchive], ['fit', L.tabFit]].forEach(function (t) {
     var d = el('div', 'mf-tab' + (state.tab === t[0] ? ' on' : ''), t[1])
     d.onclick = function () { state.tab = t[0]; state.detail = null; state.confirmingDelete = null; render() }
     wrap.appendChild(d)
@@ -239,7 +351,7 @@ function switchRow(title, desc, key, extra) {
   var on = !!(state.config && state.config[key])
   var sw = el('div', 'mf-sw' + (on ? ' on' : ''))
   sw.appendChild(el('i'))
-  sw.title = on ? '点击关闭' : '点击开启'
+  sw.title = T().tooltipSwitch
   sw.onclick = function () { var p = {}; p[key] = !on; setConfig(p) }
   row.appendChild(sw)
   if (extra) row.appendChild(extra)
@@ -548,8 +660,8 @@ function ensureMounted() {
     fabRoot.id = 'mf-fab-root'
     fabRoot.className = 'mf-fab'
     fabRoot.appendChild(el('span', 'mf-dot'))
-    fabRoot.appendChild(el('span', null, '记忆拟合'))
-    fabRoot.title = '记忆拟合'
+    fabRoot.appendChild(el('span', null, T().title))
+    fabRoot.title = T().tooltipOpen
     fabRoot.onclick = function () { setOpen(!state.open) }
     document.body.appendChild(fabRoot)
   }

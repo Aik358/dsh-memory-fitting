@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented here.
 
+## [0.1.7] — 2026-09-16
+
+悬窗 UI 双语化。
+
+### 新增
+
+- 悬窗完整双语（中/英），与 `README` / `USER-GUIDE` 的双语体系对齐。
+- 标题栏新增语言切换按钮（`EN` / `中`），选择持久化在 `localStorage`。
+- 首次使用按 `navigator.language` 自动判断，中文环境默认中文。
+
+### 设计说明
+
+UI 语言**存在 localStorage，不进插件配置** —— 改语言不该触发服务端写盘，也不该和"污染面开关"混在一起。
+
 ## [0.1.6] — 2026-09-16
 
 被拒提案开始记录「错在哪」。
