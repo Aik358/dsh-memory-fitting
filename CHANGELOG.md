@@ -2,6 +2,27 @@
 
 All notable changes to this project are documented here.
 
+## [0.1.3] — 2026-09-16
+
+训练数据导出（`docs/TRAINING.md` 阶段 1 第三项待补项）。
+
+### 新增
+
+- **`scripts/export-training.mjs`**：把拟合留档导出为**偏好对**格式。
+  - 输出 JSONL，每行 `{ prompt, chosen, rejected, verdict, scope, meta }`
+  - `--intent-only`：只导出 `scope=intent`（训练时必用，防止学到用户的事实性错误）
+  - `--out <file>`：指定输出路径
+  - 顺带打印 **verdict 分布与纠正率** —— 纠正率越高，样本越有信息量
+- `npm run export` / `npm run release` 两个快捷脚本。
+
+### 设计说明
+
+导出的两种样本：
+1. **每轮问答**：prompt = 触发语 + 问题；chosen = 用户实际选择；rejected = 其余选项
+2. **收敛结论**：prompt = 触发语 + "判断用户最终想要哪个方向"；chosen = 收敛方向；rejected = 落选方向
+
+第二种是最有价值的样本 —— 它直接对应"模型面对同样的模糊输入，应该收敛到哪个方向"。
+
 ## [0.1.2] — 2026-09-16
 
 训练就绪字段补全（对齐 `docs/TRAINING.md` 阶段 1 的待补项）。
