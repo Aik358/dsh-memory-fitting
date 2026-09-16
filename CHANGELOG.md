@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented here.
 
+## [0.1.1] — 2026-09-16
+
+文档发布。
+
+### 新增
+
+- **双语 README**：`README.md`（中文）与 `README_EN.md`（English），顶部带按钮式语言切换。
+- **双语用户手册**：`USER-GUIDE.md` / `USER-GUIDE_EN.md` —— 覆盖「什么时候用 / 三分钟跑通 / 三个页签 / 开关怎么设 / 两种发起方式 / 留档结构 / FAQ / 数据与隐私」。
+- **训练路线图**：`docs/TRAINING.md` / `docs/TRAINING_EN.md` —— 说明如何从当前的上下文拟合，过渡到未来的偏好训练（LoRA / DPO），含数据量分界、三阶段路线，以及"意图层拟合 / 事实层绝不拟合"的边界约束。
+- 宣传横幅 `docs/promo/banner.svg`。
+
+### 变更
+
+- npm 包 `files` 增加 `docs` 与两份 README / 手册。
+
 ## [0.1.0] — 2026-09-16
 
 首次发布。把 SSVEP 脑机接口项目的「意图拟合」环节移植为 DSH 插件。
@@ -25,7 +40,7 @@ All notable changes to this project are documented here.
 **存储**
 - 本地 JSONL append-only 留档（`~/.dsh/memory-fitting/sessions/`），索引可重建。
 - 三级降级归档：auto-memory → 其它记忆插件 → 仅本地。
-- 训练就绪的 `fit/feedback` 三元组采集（context / modelDid / userSaid / verdict / preference）。
+- 训练就绪的 `fit/feedback` 四元组采集（context / modelDid / userSaid / verdict / preference）。
 
 **安全**
 - `sanitize.js`：写入记忆插件前对用户原话做**字符级改写**，防止锚点击穿记忆文件。所有归档文本强制过 `guard()`。
